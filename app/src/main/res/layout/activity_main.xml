@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.scwang.smartrefresh.layout.SmartRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/refreshLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+<LinearLayout
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -72,6 +76,7 @@
                 android:src="@drawable/ic_leaf" />
 
             <TextView
+                android:id="@+id/env_sound"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="7dp"
@@ -97,6 +102,7 @@
                 android:src="@drawable/ic_sun" />
 
             <TextView
+                android:id="@+id/env_light"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
@@ -122,6 +128,7 @@
                 android:src="@drawable/ic_temperature" />
 
             <TextView
+                android:id="@+id/env_temperature"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
@@ -147,6 +154,7 @@
                 android:src="@drawable/ic_water_dot" />
 
             <TextView
+                android:id="@+id/env_water"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
@@ -522,7 +530,34 @@
 
             </LinearLayout>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:padding="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:text="其他智能设备"
+                    android:textColor="@color/white"
+                    android:layout_marginLeft="5dp" />
+
+                <View
+                    android:background="@color/mainBlockSplit"
+                    android:layout_marginTop="5dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="0.3dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/devices_rv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
-
 </LinearLayout>
+</com.scwang.smartrefresh.layout.SmartRefreshLayout>

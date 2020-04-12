@@ -1,21 +1,38 @@
 package cn.djzhao.smartcontroller;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.lzy.okgo.OkGo;
+import com.lzy.okgo.callback.StringCallback;
+import com.scwang.smartrefresh.layout.SmartRefreshLayout;
+import com.scwang.smartrefresh.layout.api.RefreshLayout;
+import com.scwang.smartrefresh.layout.listener.OnLoadMoreListener;
+import com.scwang.smartrefresh.layout.listener.OnRefreshListener;
+
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import cn.djzhao.smartcontroller.dialog.BottomPanel;
+import cn.djzhao.smartcontroller.entity.Device;
 import cn.djzhao.smartcontroller.utils.SharedPreferenceUtils;
+import okhttp3.Call;
+import okhttp3.Response;
+
+import static cn.djzhao.smartcontroller.utils.Constants.BASE_URL;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -31,6 +48,18 @@ public class MainActivity extends AppCompatActivity {
     TextView iceboxStatusTv;
     @BindView(R.id.curtain_status_tv)
     TextView curtainStatusTv;
+    @BindView(R.id.devices_rv)
+    RecyclerView devicesLv;
+    @BindView(R.id.env_sound)
+    TextView envSound;
+    @BindView(R.id.env_light)
+    TextView envLight;
+    @BindView(R.id.env_temperature)
+    TextView envTemperature;
+    @BindView(R.id.env_water)
+    TextView envWater;
+    @BindView(R.id.refreshLayout)
+    SmartRefreshLayout refreshLayout;
 
     private Context mContext;
 
@@ -49,6 +78,55 @@ public class MainActivity extends AppCompatActivity {
         mContext = this;
         initView();
         echo();
+        initEvent();
+        getDataFromServer();
+    }
+
+    /**
+     * 事件初始化
+     */
+    private void initEvent() {
+        refreshLayout.setOnRefreshListener(new OnRefreshListener() {
+            @Override
+            public void onRefresh(RefreshLayout refreshlayout) {
+                getDataFromServer();
+                refreshlayout.finishRefresh(2000/*,false*/);//传入false表示刷新失败
+            }
+        });
+        /*refreshLayout.setOnLoadMoreListener(new OnLoadMoreListener() {
+            @Override
+            public void onLoadMore(RefreshLayout refreshlayout) {
+            }
+        });*/
+    }
+
+    /**
+     * 从服务器获取数据
+     */
+    private void getDataFromServer() {
+        OkGo
+                .get(BASE_URL + "getDevices")
+                .execute(new StringCallback() {
+                    @Override
+                    public void onSuccess(String s, Call call, Response response) {
+                        Type collectionType = new TypeToken<List<Device>>() {
+                        }.getType();
+                        ArrayList<Device> devices = new Gson().fromJson(s, collectionType);
+                        devicesLv.setAdapter(new DeviceAdapter(mContext, devices));
+                    }
+                });
+        OkGo
+                .post(BASE_URL + "getEnv")
+                .execute(new StringCallback() {
+                    @Override
+                    public void onSuccess(String s, Call call, Response response) {
+                        String[] split = s.split("\\|");
+                        envSound.setText(split[0]);
+                        envLight.setText(split[1]);
+                        envTemperature.setText(split[2]);
+                        envWater.setText(split[3]);
+                    }
+                });
     }
 
     /**
@@ -87,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
     private void initView() {
         dialog = new BottomPanel(mContext);
         dialog.setOnDismissListener(dialog -> echo());
+        devicesLv.setLayoutManager(new LinearLayoutManager(this));
     }
 
     @OnClick({R.id.tv_power_ll, R.id.router_power_ll, R.id.light_power_ll, R.id.curtain_power_ll, R.id.air_condition_power_ll, R.id.icebox_power_ll, R.id.air_condition_show_ll, R.id.icebox_show_ll, R.id.curtain_show_ll})
