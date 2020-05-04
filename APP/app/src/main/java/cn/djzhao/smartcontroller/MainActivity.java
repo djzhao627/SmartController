@@ -2,6 +2,7 @@ package cn.djzhao.smartcontroller;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -22,6 +23,8 @@ import com.scwang.smartrefresh.layout.listener.OnRefreshListener;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -29,6 +32,7 @@ import butterknife.OnClick;
 import cn.djzhao.smartcontroller.dialog.BottomPanel;
 import cn.djzhao.smartcontroller.entity.Device;
 import cn.djzhao.smartcontroller.utils.SharedPreferenceUtils;
+import cn.djzhao.smartcontroller.view.NumberAnimTextView;
 import okhttp3.Call;
 import okhttp3.Response;
 
@@ -55,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.env_light)
     TextView envLight;
     @BindView(R.id.env_temperature)
-    TextView envTemperature;
+    NumberAnimTextView envTemperature;
     @BindView(R.id.env_water)
     TextView envWater;
     @BindView(R.id.refreshLayout)
@@ -80,6 +84,16 @@ public class MainActivity extends AppCompatActivity {
         echo();
         initEvent();
         getDataFromServer();
+        asynchronousUpdate();
+    }
+
+    /**
+     * 异步更新温度信息
+     */
+    private void asynchronousUpdate() {
+        Timer timer = new Timer();
+        Task task = new Task();
+        timer.schedule(task, 2000, 12000);
     }
 
     /**
@@ -123,7 +137,9 @@ public class MainActivity extends AppCompatActivity {
                         String[] split = s.split("\\|");
                         envSound.setText(split[0]);
                         envLight.setText(split[1]);
-                        envTemperature.setText(split[2]);
+                        if (SharedPreferenceUtils.getBoolean(mContext, "airCondition", false)) {
+                            envTemperature.setNumberString(envTemperature.getText().toString(), split[2]);
+                        }
                         envWater.setText(split[3]);
                     }
                 });
@@ -134,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void echo() {
         powers[0] = SharedPreferenceUtils.getBoolean(mContext, "tv", false);
-        powers[1] = SharedPreferenceUtils.getBoolean(mContext, "router", false);
+        powers[1] = SharedPreferenceUtils.getBoolean(mContext, "airCondition", false);
         powers[2] = SharedPreferenceUtils.getBoolean(mContext, "light", false);
 
         if (powers[0]) {
@@ -166,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
         dialog = new BottomPanel(mContext);
         dialog.setOnDismissListener(dialog -> echo());
         devicesLv.setLayoutManager(new LinearLayoutManager(this));
+        envTemperature.setDuration(8000);
     }
 
     @OnClick({R.id.tv_power_ll, R.id.router_power_ll, R.id.light_power_ll, R.id.curtain_power_ll, R.id.air_condition_power_ll, R.id.icebox_power_ll, R.id.air_condition_show_ll, R.id.icebox_show_ll, R.id.curtain_show_ll})
@@ -178,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.router_power_ll:
                 powers[1] = !powers[1];
-                SharedPreferenceUtils.putBoolean(mContext, "router", powers[1]);
+                SharedPreferenceUtils.putBoolean(mContext, "airCondition", powers[1]);
                 echo();
                 break;
             case R.id.light_power_ll:
@@ -204,5 +221,26 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+    }
+
+    /**
+     * 任务
+     */
+    class Task extends TimerTask {
+        @Override
+        public void run() {
+            if (SharedPreferenceUtils.getBoolean(mContext, "airCondition", false)) {
+                OkGo
+                        .get(BASE_URL + "getTemperature")
+                        .execute(new StringCallback() {
+                            @Override
+                            public void onSuccess(String s, Call call, Response response) {
+                                if (!TextUtils.isEmpty(s)) {
+                                    envTemperature.setNumberString(envTemperature.getText().toString(), s);
+                                }
+                            }
+                        });
+            }
+        }
     }
 }

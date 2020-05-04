@@ -19,3 +19,11 @@
 -   bootstrap table
 -   lombok
 
+
+
+开放接口（动态更新温度数据）：
+
+>   http://IP:8080/index/updateTemperature?temp=温度值
+
+修改上面的`IP`和`温度值`既是开放接口
+

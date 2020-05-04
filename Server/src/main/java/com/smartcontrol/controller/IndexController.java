@@ -4,6 +4,7 @@ import com.smartcontrol.model.Device;
 import com.smartcontrol.service.DeviceService;
 import com.smartcontrol.util.PageBean;
 import com.smartcontrol.util.TableData;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @Author: laizc
@@ -83,5 +86,47 @@ public class IndexController {
     public List<Device> getDevices() {
         return deviceService.getDevices();
     }
+
+    @GetMapping("/updateTemperature")
+    @ResponseBody
+    public String updateTemperature(String temp) {
+        // 嘈杂|明亮哦|29|78
+        if (StringUtils.isEmpty(temp)) {
+            return "ERROR, Need parameter: temp";
+        }
+        String values = jdbcTemplate.queryForObject("select `value` from sys_config where `key` = 'enviro'", String.class);
+        String pattern = "\\|\\d+\\|";
+        Pattern p = Pattern.compile(pattern);
+        Matcher matcher = p.matcher(values);
+        String result = "";
+        if (matcher.find()) {
+            result = matcher.group();
+        } else {
+            return "ERROR";
+        }
+        values = values.replace(result, String.format("|%s|", temp));
+        jdbcTemplate.update("update sys_config set `value` = ? where `key` = 'enviro'", values);
+        return "OK";
+    }
+
+    @GetMapping("/getTemperature")
+    @ResponseBody
+    public String getTemperature() {
+        // 嘈杂|明亮哦|29|78
+        String values = jdbcTemplate.queryForObject("select `value` from sys_config where `key` = 'enviro'", String.class);
+        String pattern = "\\|\\d+\\|";
+        Pattern p = Pattern.compile(pattern);
+        assert values != null;
+        Matcher matcher = p.matcher(values);
+        String result = "";
+        if (matcher.find()) {
+            result = matcher.group();
+            return result.substring(1, result.length() - 1);
+        }
+        // 空表示错误
+        return "";
+    }
+
+
 
 }
