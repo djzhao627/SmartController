@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
                         String[] split = s.split("\\|");
                         envSound.setText(split[0]);
                         envLight.setText(split[1]);
-                        if (SharedPreferenceUtils.getBoolean(mContext, "airCondition", false)) {
+                        if (SharedPreferenceUtils.getBoolean(mContext, "air", false)) {
                             envTemperature.setNumberString(envTemperature.getText().toString(), split[2]);
                         }
                         envWater.setText(split[3]);
@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void echo() {
         powers[0] = SharedPreferenceUtils.getBoolean(mContext, "tv", false);
-        powers[1] = SharedPreferenceUtils.getBoolean(mContext, "airCondition", false);
+        powers[1] = SharedPreferenceUtils.getBoolean(mContext, "air", false);
         powers[2] = SharedPreferenceUtils.getBoolean(mContext, "light", false);
 
         if (powers[0]) {
@@ -173,9 +173,30 @@ public class MainActivity extends AppCompatActivity {
         status[1] = SharedPreferenceUtils.getInt(mContext, "icebox", 60);
         status[2] = SharedPreferenceUtils.getInt(mContext, "curtain", 70);
 
+        String currentTemp = envTemperature.getText().toString();
+        if (SharedPreferenceUtils.getBoolean(mContext, "air", false)) {
+            envTemperature.setNumberString(currentTemp, String.valueOf(status[0]));
+        }
+        if (!currentTemp.equals(String.valueOf(status[0]))) {
+            sendDataToServer(status[0]);
+        }
+
         airConditionStatusTv.setText(String.format("%d℃", status[0]));
         iceboxStatusTv.setText(String.format("%d%%", status[1]));
         curtainStatusTv.setText(String.format("%d%%", status[2]));
+    }
+
+    /**
+     * 温度数据传输至后台
+     */
+    private void sendDataToServer(int temp) {
+        OkGo
+                .get(BASE_URL + "updateTemperature?temp=" + temp)
+                .execute(new StringCallback() {
+                    @Override
+                    public void onSuccess(String s, Call call, Response response) {
+                    }
+                });
     }
 
     private void initView() {
@@ -195,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.router_power_ll:
                 powers[1] = !powers[1];
-                SharedPreferenceUtils.putBoolean(mContext, "airCondition", powers[1]);
+                SharedPreferenceUtils.putBoolean(mContext, "air", powers[1]);
                 echo();
                 break;
             case R.id.light_power_ll:
@@ -229,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
     class Task extends TimerTask {
         @Override
         public void run() {
-            if (SharedPreferenceUtils.getBoolean(mContext, "airCondition", false)) {
+            if (SharedPreferenceUtils.getBoolean(mContext, "air", false)) {
                 OkGo
                         .get(BASE_URL + "getTemperature")
                         .execute(new StringCallback() {
