@@ -1,11 +1,16 @@
 package cn.djzhao.smartcontroller;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -13,6 +18,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.inuker.bluetooth.library.BluetoothClient;
+import com.inuker.bluetooth.library.beacon.Beacon;
+import com.inuker.bluetooth.library.connect.response.BleWriteResponse;
+import com.inuker.bluetooth.library.receiver.listener.BluetoothBondListener;
+import com.inuker.bluetooth.library.search.SearchRequest;
+import com.inuker.bluetooth.library.search.SearchResult;
+import com.inuker.bluetooth.library.search.response.SearchResponse;
+import com.inuker.bluetooth.library.utils.BluetoothLog;
+import com.inuker.bluetooth.library.utils.BluetoothUtils;
 import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.StringCallback;
 import com.scwang.smartrefresh.layout.SmartRefreshLayout;
@@ -22,7 +36,9 @@ import com.scwang.smartrefresh.layout.listener.OnRefreshListener;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -37,6 +53,7 @@ import okhttp3.Call;
 import okhttp3.Response;
 
 import static cn.djzhao.smartcontroller.utils.Constants.BASE_URL;
+import static com.inuker.bluetooth.library.Constants.REQUEST_SUCCESS;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -74,6 +91,15 @@ public class MainActivity extends AppCompatActivity {
 
     private BottomPanel dialog;
 
+    private BluetoothClient mClient;
+
+    private final BluetoothBondListener mBluetoothBondListener = new BluetoothBondListener() {
+        @Override
+        public void onBondStateChanged(String mac, int bondState) {
+            // bondState = Constants.BOND_NONE, BOND_BONDING, BOND_BONDED
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
      * 事件初始化
      */
     private void initEvent() {
+        initBluetooth();
         refreshLayout.setOnRefreshListener(new OnRefreshListener() {
             @Override
             public void onRefresh(RefreshLayout refreshlayout) {
@@ -112,6 +139,38 @@ public class MainActivity extends AppCompatActivity {
             public void onLoadMore(RefreshLayout refreshlayout) {
             }
         });*/
+    }
+
+    private void initBluetooth() {
+        List<BluetoothDevice> connectedBluetoothLeDevices = BluetoothUtils.getConnectedBluetoothLeDevices();
+        SearchRequest request = new SearchRequest.Builder()
+                .searchBluetoothLeDevice(3000, 3)   // 先扫BLE设备3次，每次3s
+                .searchBluetoothClassicDevice(5000) // 再扫经典蓝牙5s
+                .searchBluetoothLeDevice(2000)      // 再扫BLE设备2s
+                .build();
+        mClient.search(request, new SearchResponse() {
+            @Override
+            public void onSearchStarted() {
+
+            }
+
+            @Override
+            public void onDeviceFounded(SearchResult device) {
+                Beacon beacon = new Beacon(device.scanRecord);
+                BluetoothLog.v(String.format("beacon for %s\n%s", device.getAddress(), beacon.toString()));
+            }
+
+            @Override
+            public void onSearchStopped() {
+
+            }
+
+            @Override
+            public void onSearchCanceled() {
+
+            }
+        });
+        mClient.registerBluetoothBondListener(mBluetoothBondListener);
     }
 
     /**
@@ -174,16 +233,47 @@ public class MainActivity extends AppCompatActivity {
         status[2] = SharedPreferenceUtils.getInt(mContext, "curtain", 70);
 
         String currentTemp = envTemperature.getText().toString();
-        if (SharedPreferenceUtils.getBoolean(mContext, "air", false)) {
-            envTemperature.setNumberString(currentTemp, String.valueOf(status[0]));
-        }
         if (!currentTemp.equals(String.valueOf(status[0]))) {
             sendDataToServer(status[0]);
+            sendDataToSinglechip(status[0] > Integer.parseInt(currentTemp) ? "1" : "0");
+        }
+        if (SharedPreferenceUtils.getBoolean(mContext, "air", false)) {
+            envTemperature.setNumberString(currentTemp, String.valueOf(status[0]));
         }
 
         airConditionStatusTv.setText(String.format("%d℃", status[0]));
         iceboxStatusTv.setText(String.format("%d%%", status[1]));
         curtainStatusTv.setText(String.format("%d%%", status[2]));
+    }
+
+    /**
+     * 将数据使用蓝牙发送给单片机
+     *
+     * @param status 1 温度升高 2 温度降低
+     */
+    private void sendDataToSinglechip(String status) {
+        if (!mClient.isBluetoothOpened()) {
+            Toast.makeText(mContext, "蓝牙未开启，无法发送数据", Toast.LENGTH_SHORT).show();
+            mClient.openBluetooth();
+            return;
+        }
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        Set<BluetoothDevice> devices = adapter.getBondedDevices();
+        for (BluetoothDevice bluetoothDevice : devices)
+        {
+            ParcelUuid[] uuids = bluetoothDevice.getUuids();
+            mClient.write(bluetoothDevice.getAddress(), uuids[0].getUuid(), uuids[1].getUuid(), status.getBytes(), new BleWriteResponse() {
+                @Override
+                public void onResponse(int code) {
+                    if (code == REQUEST_SUCCESS) {
+
+                    } else {
+                        Log.d("response", String.valueOf(code));
+                    }
+                }
+            });
+
+        }
     }
 
     /**
@@ -200,6 +290,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
+        mClient = new BluetoothClient(mContext);
         dialog = new BottomPanel(mContext);
         dialog.setOnDismissListener(dialog -> echo());
         devicesLv.setLayoutManager(new LinearLayoutManager(this));

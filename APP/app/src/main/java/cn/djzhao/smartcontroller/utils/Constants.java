@@ -12,5 +12,5 @@ public class Constants {
     /**
      * 服务器地址
      */
-    public static String BASE_URL = "http://192.168.1.66:8080/index/";
+    public static String BASE_URL = "http://192.168.1.6:8080/index/";
 }
